@@ -13,3 +13,4 @@ keep METFilter_MC
 keep METFilter_DATA
 keep METFilter_FAKE
 keep fakeW2l_*
+keep PrefireWeight
