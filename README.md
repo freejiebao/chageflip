@@ -18,9 +18,9 @@ scram b
 
 pushd PhysicsTools/NanoAODTools/
 
-sh skim0_mc_2016.sh
+sh python/postprocessing/chargeflip/skim0_data_2016.sh
 
-sh skim0_data_2016.sh
+sh python/postprocessing/chargeflip/skim0_mc_2016_new.sh
 
 ### Fit
 

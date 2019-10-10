@@ -41,13 +41,13 @@ class zcutProducer(Module):
         elif len(leptons) >= 3:
             if leptons[2].pt> 10.:
                 return False
-        if leptons[0].pt<20 or leptons[1].pt<20:
+        if leptons[0].pt<10 or leptons[1].pt<10:
             return False
         # mumu channel
         if not abs(leptons[0].pdgId*leptons[1].pdgId) == 13*13:
-            return False
+           return False
         # ee channel
-        # if not abs(leptons[0].pdgId*leptons[1].pdgId) == 11*11:
+        #if not abs(leptons[0].pdgId*leptons[1].pdgId) == 11*11:
         #   return False
         if abs(event.mll-self.zmass)>15:
             return False
