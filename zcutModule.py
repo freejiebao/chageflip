@@ -54,7 +54,7 @@ class zcutProducer(Module):
 
         trigger=True
         genmatch=True
-        if self.trig=='MC':
+        if self.isData=='MC':
             genmatch=leptons[0].promptgenmatched*leptons[1].promptgenmatched
         elif self.trig=='MuonEG':
             trigger=event.Trigger_ElMu
