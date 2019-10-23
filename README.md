@@ -26,5 +26,5 @@ sh python/postprocessing/chargeflip/skim0_mc_2016_new.sh
 
 cd CMSSW_10_2_15/src/PhysicsTools/NanoAODTools/python/postprocessing/chargeflip
 
-python chargeflip_plot.py -y 2016 -p -f -r
+python chargeflip_plot.py -y 2016 -p -f -r -pt highpt
 
