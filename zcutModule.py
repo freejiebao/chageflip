@@ -5,7 +5,7 @@ from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collect
 from PhysicsTools.NanoAODTools.postprocessing.framework.eventloop import Module
 
 class zcutProducer(Module):
-    def __init__(self, zmass=91.1876, isData="MC", year='2016', trig='MC'):
+    def __init__(self, zmass=91.1876, isData="MC", year='2016', trig='MuonEG'):
         self.zmass = zmass
         self.isData=isData
         self.year=year
@@ -44,16 +44,16 @@ class zcutProducer(Module):
         if leptons[0].pt<10 or leptons[1].pt<10:
             return False
         # mumu channel
-        if not abs(leptons[0].pdgId*leptons[1].pdgId) == 13*13:
-           return False
-        # ee channel
-        #if not abs(leptons[0].pdgId*leptons[1].pdgId) == 11*11:
+        #if not abs(leptons[0].pdgId*leptons[1].pdgId) == 13*13:
         #   return False
+        # ee channel
+        if not abs(leptons[0].pdgId*leptons[1].pdgId) == 11*11:
+           return False
         if abs(event.mll-self.zmass)>15:
             return False
 
-        trigger=True
-        genmatch=True
+        trigger=1
+        genmatch=1
         if self.isData=='MC':
             genmatch=leptons[0].promptgenmatched*leptons[1].promptgenmatched
         elif self.trig=='MuonEG':
@@ -62,9 +62,8 @@ class zcutProducer(Module):
             trigger=((not event.Trigger_ElMu) and event.Trigger_dblMu)
         elif self.trig=='SingleMuon':
             trigger=((not event.Trigger_ElMu) and (not event.Trigger_dblMu) and event.Trigger_sngMu)
-        elif self.year=='2018':
-            if self.trig=='EGamma':
-                trigger=(not event.Trigger_ElMu) and (not event.Trigger_dblMu) and (not event.Trigger_sngMu) and (event.Trigger_dblEl or event.Trigger_sngEl)
+        elif self.year=='2018' and self.trig=='EGamma':
+            trigger=(not event.Trigger_ElMu) and (not event.Trigger_dblMu) and (not event.Trigger_sngMu) and (event.Trigger_dblEl or event.Trigger_sngEl)
         else:
             if self.trig=='DoubleEG':
                 trigger=((not event.Trigger_ElMu) and (not event.Trigger_dblMu) and (not event.Trigger_sngMu) and event.Trigger_dblEl)

@@ -13,19 +13,25 @@ parser.add_argument('-p','--plot', help='make mll distribution, default is true'
 parser.add_argument('-f','--fit', help='fit to mll distribution, default is true',action='store_true', default= False)
 parser.add_argument('-y','--year', help='chose all jobs in this year', choices=('2016','2017','2018'), default= '2017')
 parser.add_argument('-r','--ratio', help='get ratio h_os divided by h_ss', action='store_true', default= False)
+parser.add_argument('-pt','--ptbin', help='decide which pt bin: highpt,lowpt1,lowpt0', choices=('highpt','lowpt1','lowpt0'), default= 'highpt')
 
 args = parser.parse_args()
 
 zmass = '91.1876'
 
-
-fout_plots=ROOT.TFile('chargeflip_plots_'+args.year+'.root','recreate')
-
-
 def save_plot(df,weight,prefix):
     print('>>>>>>>>>>>>>>>>>>>> save plots')
+    fout=ROOT.TFile('chargeflip_plots_'+args.year+'_'+args.ptbin+'.root','update')
     #df = ROOT.ROOT.RDataFrame("Events", files)
-    df1=df.Filter('lep1_pt > 20 && lep2_pt > 20 && abs(mll-'+zmass+') < 15')
+    pt_cut=''
+    if args.ptbin=='highpt':
+        pt_cut='lep1_pt > 30 &&  lep2_pt > 30'
+    elif args.ptbin=='lowpt1':
+        pt_cut='lep1_pt > 30 &&  lep2_pt <= 30 && lep2_pt > 20'
+    elif args.ptbin=='lowpt0':
+        pt_cut='lep1_pt > 30 &&  lep2_pt <= 20 && lep2_pt > 10'
+    #df1=df.Filter('lep1_pt > 30 &&  lep2_pt > 30 && abs(mll-'+zmass+') < 15')
+    df1=df.Filter(pt_cut)
     # pt_bin=['0.','20.']
     eta_bin = ['0.','0.5','1.0','1.5','2.0','2.5']
     regions=np.zeros((5,5),dtype=np.object)
@@ -39,7 +45,7 @@ def save_plot(df,weight,prefix):
         for j in range(len(regions[i])):
             df_tmp=df_ss.Filter(regions[i][j])
             histo=df_tmp.Histo1D((prefix+"_ss_etabin"+str(i)+"_etabin"+str(j)+"_mll", "mll", 30, 76.1876, 106.1876), "mll","weight")
-            fout_plots.cd()
+            fout.cd()
             histo.Write()
 
     # opposite-sign, actually the total number of dielectron
@@ -48,8 +54,10 @@ def save_plot(df,weight,prefix):
         for j in range(len(regions[i])):
             df_tmp=df_os.Filter(regions[i][j])
             histo=df_tmp.Histo1D((prefix+"_os_etabin"+str(i)+"_etabin"+str(j)+"_mll", "mll", 30, 76.1876, 106.1876), "mll","weight")
-            fout_plots.cd()
+            fout.cd()
             histo.Write()
+    fout.Write("",ROOT.TObject.kOverwrite)
+    fout.Close()
 
 def fit(filename):
     print('>>>>>>>>>>>>>>>>>>>> perform fit')
@@ -64,6 +72,9 @@ def fit(filename):
     for ihis in histos:
         print('fit to: ',ihis)
         htmp=fin.Get(ihis)
+        for ibin in range(0,30):
+            if htmp.GetBinContent(ibin+1)<0:
+                htmp.SetBinContent(ibin+1,0)
         nEvent=htmp.Integral()
         nHalf=0.8*nEvent
         w = ROOT.RooWorkspace("w")
@@ -120,7 +131,8 @@ def fit(filename):
     fout=ROOT.TFile('count_'+filename,'recreate')
     h_ss_sub=ROOT.TH2D()
     h_os_sub=ROOT.TH2D()
-    samples=['DPS','WW_strong','FAKE','VVV','VZ','Vg','WW_EWK','TTV','DATA','DY']
+    #samples=['DPS','WW_strong','FAKE','VVV','VZ','Vg','WW_EWK','TTV','DATA','DY']
+    samples=['DATA','DY']
     ss_plots=[]
     os_plots=[]
     for isample in samples:
@@ -128,10 +140,10 @@ def fit(filename):
         h_os=ROOT.TH2D('h_os_'+isample,'h_os_'+isample,5,0.,2.5,5,0.,2.5)
         for i in ['0','1','2','3','4']:
             for j in ['0','1','2','3','4']:
-                h_ss.SetBinContent(int(i)+1,int(j)+1,count[isample+'_'+args.year+"_ss_etabin"+i+"_etabin"+j+"_mll"])
-                h_ss.SetBinError(int(i)+1,int(j)+1,count_err[isample+'_'+args.year+"_ss_etabin"+i+"_etabin"+j+"_mll"])
-                h_os.SetBinContent(int(i)+1,int(j)+1,count[isample+'_'+args.year+"_os_etabin"+i+"_etabin"+j+"_mll"])
-                h_os.SetBinError(int(i)+1,int(j)+1,count_err[isample+'_'+args.year+"_os_etabin"+i+"_etabin"+j+"_mll"])
+                h_ss.SetBinContent(int(i)+1,int(j)+1,count[isample+'_'+args.year+'_'+args.ptbin+"_ss_etabin"+i+"_etabin"+j+"_mll"])
+                h_ss.SetBinError(int(i)+1,int(j)+1,count_err[isample+'_'+args.year+'_'+args.ptbin+"_ss_etabin"+i+"_etabin"+j+"_mll"])
+                h_os.SetBinContent(int(i)+1,int(j)+1,count[isample+'_'+args.year+'_'+args.ptbin+"_os_etabin"+i+"_etabin"+j+"_mll"])
+                h_os.SetBinError(int(i)+1,int(j)+1,count_err[isample+'_'+args.year+'_'+args.ptbin+"_os_etabin"+i+"_etabin"+j+"_mll"])
         if isample=='DATA':
             h_ss_sub=h_ss.Clone()
             h_ss_sub.SetName('h_ss_DATASUB')
@@ -181,6 +193,18 @@ def ratio(filename):
     fout.Write()
     fout.Close()
 
+    c=ROOT.TCanvas()
+    ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetPaintTextFormat("1.4f")
+    h_ss.Draw("colz texte")
+    c.SaveAs('h_ss_DATASUB_'+args.year+'_'+args.ptbin+'.png')
+    c.Clear()
+    h_os.Draw("colz texte")
+    c.SaveAs('h_os_DATASUB_'+args.year+'_'+args.ptbin+'.png')
+    c.Clear()
+    h_ratio.Draw("colz texte")
+    c.SaveAs('h_ratio_DATA_'+args.year+'_'+args.ptbin+'.png')
+
     h_ss=fin.Get('h_ss_DY')
     h_os=fin.Get('h_os_DY')
     h_ratio=h_ss.Clone()
@@ -192,18 +216,34 @@ def ratio(filename):
     fout.Write()
     fout.Close()
 
+    h_ss.Draw("colz texte")
+    c.SaveAs('h_ss_DY_'+args.year+'_'+args.ptbin+'.png')
+    c.Clear()
+    h_os.Draw("colz texte")
+    c.SaveAs('h_os_DY_'+args.year+'_'+args.ptbin+'.png')
+    c.Clear()
+    h_ratio.Draw("colz texte")
+    c.SaveAs('h_ratio_DY_'+args.year+'_'+args.ptbin+'.png')
+
 if __name__ == '__main__':
     if args.plot:
+        fout_plots=ROOT.TFile('chargeflip_plots_'+args.year+'_'+args.ptbin+'.root','recreate')
+        fout_plots.Write()
+        fout_plots.Close()
+
         # Create dataframe from NanoAOD files
         if args.year == '2017':
-            sample_names={"DY":["DYJetsToLL_M-10to50-LO","DYJetsToLL_M-50-LO"],"Vg":["ZGToLLG","Wg_MADGRAPHMLM"],"VZ":["ZZTo2L2Nu","ZZTo2L2Q","ZZTo4L_new_pmx","WZTo2L2Q","WZTo3LNu_mllmin01"],"VVV":["ZZZ","ZZW","ZWW","WWW"],"TTV":["TTWjets","TTZToLLNuNu_M-10"],"DPS":["WWTo2L2Nu_DoubleScattering"],"WW_strong":["WpWpJJ_QCD"],"WW_EWK":["WpWpJJ_EWK__part"],"FAKE":["fake_2017"],"DATA":["data_2017"]}
+            #sample_names={"DY":["DYJetsToLL_M-10to50-LO","DYJetsToLL_M-50-LO"],"Vg":["ZGToLLG","Wg_MADGRAPHMLM"],"VZ":["ZZTo2L2Nu","ZZTo2L2Q","ZZTo4L_new_pmx","WZTo2L2Q","WZTo3LNu_mllmin01"],"VVV":["ZZZ","ZZW","ZWW","WWW"],"TTV":["TTWjets","TTZToLLNuNu_M-10"],"DPS":["WWTo2L2Nu_DoubleScattering"],"WW_strong":["WpWpJJ_QCD"],"WW_EWK":["WpWpJJ_EWK__part"],"FAKE":["fake_2017"],"DATA":["data_2017"]}
+            sample_names={"DY":["DY_2017"],"DATA":["data_2017"]}
             #sample_names={"DY":["DYJetsToLL_M-10to50-LO","DYJetsToLL_M-50__part"],"DATA":["SingleMuon","SingleElectron","DoubleMuon","DoubleEG","MuonEG"]}
             #sample_names={"DY":["DYJetsToLL_M-4to50_HT","DYJetsToLL_M-50_HT"],"DATA":["SingleMuon","SingleElectron","DoubleMuon","DoubleEG","MuonEG"]}
         elif args.year == '2016':
-            sample_names={"DY":["DYJetsToLL_M-10to50__part","DYJetsToLL_M-10to50_ext1__part","DYJetsToLL_M-50_ext2__part"],"Vg":["Zg","Wg_MADGRAPHMLM"],"VZ":["ZZTo2L2Nu_ext1","ZZTo2L2Q_AMCNLOFXFX","ZZTo4L_AMCNLOFXFX","WZTo2L2Q","WZTo3LNu_mllmin01"],"VVV":["ZZZ","ZZW","ZWW","WWW"],"TTV":["TTWJetsToLNu_ext1","TTWJetsToQQ","TTZToLLNuNu_M-10_ext1","TTZToLLNuNu_M-10_ext2","TTZToLLNuNu_M-10_ext3"],"DPS":["WWTo2L2Nu_DoubleScattering"],"WW_strong":["WpWpJJ_QCD"],"WW_EWK":["WpWpJJ_EWK__part"],"FAKE":["fake_2016"],"DATA":["data_2016"]}
+            #sample_names={"DY":["DYJetsToLL_M-10to50__part","DYJetsToLL_M-10to50_ext1__part","DYJetsToLL_M-50_ext2__part"],"Vg":["Zg","Wg_MADGRAPHMLM"],"VZ":["ZZTo2L2Nu_ext1","ZZTo2L2Q_AMCNLOFXFX","ZZTo4L_AMCNLOFXFX","WZTo2L2Q","WZTo3LNu_mllmin01"],"VVV":["ZZZ","ZZW","ZWW","WWW"],"TTV":["TTWJetsToLNu_ext1","TTWJetsToQQ","TTZToLLNuNu_M-10_ext1","TTZToLLNuNu_M-10_ext2","TTZToLLNuNu_M-10_ext3"],"DPS":["WWTo2L2Nu_DoubleScattering"],"WW_strong":["WpWpJJ_QCD"],"WW_EWK":["WpWpJJ_EWK__part"],"FAKE":["fake_2016"],"DATA":["data_2016"]}
+            sample_names={"DY":["DY_2016"],"DATA":["data_2016"]}
             #sample_names={"DY":["DYJetsToLL_M-50_HT","DYJetsToLL_M-5to50_HT"],"DATA":["SingleMuon","SingleElectron","DoubleMuon","DoubleEG","MuonEG"]}
         elif args.year == '2018':
-            sample_names={"DY":["DYJetsToLL_M-10to50-LO","DYJetsToLL_M-50-LO"],"Vg":["Zg","Wg_MADGRAPHMLM"],"VZ":["ZZTo2L2Nu_ext1","ZZTo2L2Q","ZZTo4L_ext1","WZTo2L2Q","WZTo3LNu_mllmin01"],"VVV":["ZZZ","ZZW","ZWW","WWW"],"TTV":["TTWjets","TTZToLLNuNu_M-10"],"DPS":["WWTo2L2Nu_DoubleScattering"],"WW_strong":["WpWpJJ_QCD"],"WW_EWK":["WpWpJJ_EWK__part"],"FAKE":["fake_2018"],"DATA":["data_2018"]}
+            #sample_names={"DY":["DYJetsToLL_M-10to50-LO","DYJetsToLL_M-50-LO"],"Vg":["Zg","Wg_MADGRAPHMLM"],"VZ":["ZZTo2L2Nu_ext1","ZZTo2L2Q","ZZTo4L_ext1","WZTo2L2Q","WZTo3LNu_mllmin01"],"VVV":["ZZZ","ZZW","ZWW","WWW"],"TTV":["TTWjets","TTZToLLNuNu_M-10"],"DPS":["WWTo2L2Nu_DoubleScattering"],"WW_strong":["WpWpJJ_QCD"],"WW_EWK":["WpWpJJ_EWK__part"],"FAKE":["fake_2018"],"DATA":["data_2018"]}
+            sample_names={"DY":["DY_2018"],"DATA":["data_2018"]}
             #sample_names={"DY":["DYJetsToLL_M-4to50_HT","DYJetsToLL_M-50_HT"],"DATA":["SingleMuon","DoubleMuon","EGamma","MuonEG"]}
             #sample_names={"DY":["DYJetsToLL_M-10to50-LO","DYJetsToLL_M-50_ext","DYJetsToLL_M-50__part"],"DATA":["SingleMuon","DoubleMuon","EGamma","MuonEG"]}
         else:
@@ -216,11 +256,11 @@ if __name__ == '__main__':
             if sample_name=="DATA":
                 path="/eos/user/j/jixiao/HWWNano/data_%s/" % args.year
                 if args.year == '2017':
-                    weight="METFilter_DATA*LepCut2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW"
+                    weight="METFilter_DATA*LepCut2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW*trigger"
                 elif args.year == '2016':
-                    weight="METFilter_DATA*LepCut2l__ele_cut_WP_Tight80X_SS__mu_cut_Tight80x"
+                    weight="METFilter_DATA*LepCut2l__ele_cut_WP_Tight80X_SS__mu_cut_Tight80x*trigger"
                 elif args.year == '2018':
-                    weight="METFilter_DATA*LepCut2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW"
+                    weight="METFilter_DATA*LepCut2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW*trigger"
             elif sample_name=="FAKE":
                 path="/eos/user/j/jixiao/HWWNano/fake_%s/" % args.year
                 if args.year == '2017':
@@ -232,23 +272,22 @@ if __name__ == '__main__':
             else:
                 path="/eos/user/j/jixiao/HWWNano/mc_%s/" % args.year
                 if args.year == '2017':
-                    weight="SFweight2l*XSWeight*METFilter_MC*LepCut2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW*LepSF2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW*41.53"
+                    weight="SFweight2l*XSWeight*METFilter_MC*LepCut2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW*LepSF2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW*41.53*GenLepMatch2l"
                 elif args.year == '2016':
-                    weight="SFweight2l*XSWeight*METFilter_MC*LepCut2l__ele_cut_WP_Tight80X_SS__mu_cut_Tight80x*LepSF2l__ele_cut_WP_Tight80X_SS__mu_cut_Tight80x*35.92"
+                    weight="SFweight2l*XSWeight*METFilter_MC*LepCut2l__ele_cut_WP_Tight80X_SS__mu_cut_Tight80x*LepSF2l__ele_cut_WP_Tight80X_SS__mu_cut_Tight80x*35.92*GenLepMatch2l"
                 elif args.year == '2018':
-                    weight="SFweight2l*XSWeight*METFilter_MC*LepCut2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW*LepSF2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW*59.74"
+                    weight="SFweight2l*XSWeight*METFilter_MC*LepCut2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW*LepSF2l__ele_mvaFall17V2Iso_WP90_SS__mu_cut_Tight_HWWW*59.74*GenLepMatch2l"
 
             for i in range(0,len(files)):
                 chain.Add(path+"nanoLatino_*"+files[i]+"*.root")
+                print ">>>>>>>>>>>>>>>>>>>>> "+path+"nanoLatino_*"+files[i]+"*.root"
 
             print ">>>>>>>>>>>>>>>>>>>>> start plot: ",sample_name
             df = ROOT.ROOT.RDataFrame(chain)
-            save_plot(df,weight,sample_name+'_'+args.year)
-        fout_plots.Write()
-        fout_plots.Close()
+            save_plot(df,weight,sample_name+'_'+args.year+'_'+args.ptbin)
     if args.fit:
-        fit('chargeflip_plots_'+args.year+'.root')
+        fit('chargeflip_plots_'+args.year+'_'+args.ptbin+'.root')
     if args.ratio:
-        ratio('count_chargeflip_plots_'+args.year+'.root')
+        ratio('count_chargeflip_plots_'+args.year+'_'+args.ptbin+'.root')
 
     #df_unc.Snapshot("Events", "newWpWpJJ_EWK.root")
