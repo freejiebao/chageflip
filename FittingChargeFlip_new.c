@@ -116,7 +116,7 @@ void LeastSquares_PtIndependent(TString FileNameDY, TString FileNameData)
         TFile* fileDYScale_DATA = new TFile(FileNameData);
 
         TH1F* h2D_MC = (TH1F*)fileDYScale_MC->Get("h2_DY");
-        TH1F* h2D_DATA = (TH1F*)fileDYScale_DATA->Get("h2_DATASUB");
+        TH1F* h2D_DATA = (TH1F*)fileDYScale_DATA->Get("h2_DATA");
 
 
 
@@ -251,11 +251,12 @@ void LeastSquares_PtDependent_2bin(TString FileNameDY,TString FileNameDATA_Bin1,
        double e4_DATA=f2D_DATA_PtBin2->GetParError(4);
 
 	TF2 *f2D_DATA_PtBin1= new TF2("f2D_DATA_PtBin1",fitf2,0,2.5,0,2.5,10);
-        f2D_DATA_PtBin1->FixParameter(0,p0_DATA);
-        f2D_DATA_PtBin1->FixParameter(1,p1_DATA);
-        f2D_DATA_PtBin1->FixParameter(2,p2_DATA);
-        f2D_DATA_PtBin1->FixParameter(3,p3_DATA);
-        f2D_DATA_PtBin1->FixParameter(4,p4_DATA);
+
+        f2D_DATA_PtBin1->SetParameter(0,p0_DATA);
+        f2D_DATA_PtBin1->SetParameter(1,p1_DATA);
+        f2D_DATA_PtBin1->SetParameter(2,p2_DATA);
+        f2D_DATA_PtBin1->SetParameter(3,p3_DATA);
+        f2D_DATA_PtBin1->SetParameter(4,p4_DATA);
 
 
 
@@ -347,6 +348,13 @@ cout << "SF6 = " << SF6 << " +- " << eSF6 << "\n";
 cout << "SF7 = " << SF7 << " +- " << eSF7 << "\n";
 cout << "SF8 = " << SF8 << " +- " << eSF8 << "\n";
 cout << "SF9 = " << SF9 << " +- " << eSF9 << "\n";
+
+
+
+
+   
+ 
+
 
 
 }
